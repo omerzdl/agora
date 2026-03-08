@@ -1,112 +1,223 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  TouchableWithoutFeedback,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
+import { useDistrict, DISTRICTS, District } from '@/lib/DistrictContext';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+// ─── Brand Colors ─────────────────────────────────────────────────────────────
+const OLIVE = '#4D7C0F';
+const BG    = '#F9FAFB';
 
-export default function TabTwoScreen() {
+// ─── Reusable Dropdown ────────────────────────────────────────────────────────
+function DropdownModal<T extends string>({
+  visible,
+  items,
+  selected,
+  onSelect,
+  onClose,
+  title,
+}: {
+  visible: boolean;
+  items: readonly T[];
+  selected: T;
+  onSelect: (item: T) => void;
+  onClose: () => void;
+  title: string;
+}) {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.dropdownCard}>
+              <Text style={styles.dropdownTitle}>{title}</Text>
+              {items.map((item, index) => {
+                const isLast   = index === items.length - 1;
+                const isActive = item === selected;
+                return (
+                  <TouchableOpacity
+                    key={item}
+                    style={[styles.dropdownItem, !isLast && styles.dropdownItemBorder]}
+                    activeOpacity={0.7}
+                    onPress={() => { onSelect(item); onClose(); }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        isActive && styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    {isActive && (
+                      <Ionicons name="checkmark-circle" size={18} color={OLIVE} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
   );
 }
 
+// ─── Screen ───────────────────────────────────────────────────────────────────
+export default function ExploreScreen() {
+  const insets = useSafeAreaInsets();
+  const { selectedDistrict, setSelectedDistrict } = useDistrict();
+  const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <StatusBar style="dark" />
+
+      {/* ── District Dropdown Modal ── */}
+      <DropdownModal
+        visible={districtDropdownOpen}
+        items={DISTRICTS}
+        selected={selectedDistrict}
+        onSelect={(d) => setSelectedDistrict(d as District)}
+        onClose={() => setDistrictDropdownOpen(false)}
+        title="Bölge Seç"
+      />
+
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.locationBtn}
+          activeOpacity={0.75}
+          onPress={() => setDistrictDropdownOpen(true)}
+        >
+          <Ionicons name="location-outline" size={18} color={OLIVE} />
+          <Text style={styles.locationText}>{selectedDistrict}</Text>
+          <Ionicons name="chevron-down" size={14} color="#94A3B8" />
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Placeholder ── */}
+      <View style={styles.body}>
+        <Ionicons name="calendar-outline" size={48} color="#CBD5E1" />
+        <Text style={styles.title}>Etkinlikler</Text>
+        <Text style={styles.subtitle}>{selectedDistrict} etkinlikleri yakında burada</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  screen: {
+    flex: 1,
+    backgroundColor: BG,
   },
-  titleContainer: {
+
+  // ── Header ──
+  header: {
+    backgroundColor: 'rgba(249,250,251,0.96)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(226,232,240,0.6)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+  },
+  locationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  locationText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+
+  // ── Body ──
+  body: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '500',
+    color: '#1E293B',
+    letterSpacing: -0.4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#94A3B8',
+    fontWeight: '400',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+
+  // ── Dropdown Modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  dropdownCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 320,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 20,
+  },
+  dropdownTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 10,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  dropdownItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(226,232,240,0.6)',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#1E293B',
+  },
+  dropdownItemTextActive: {
+    fontWeight: '600',
+    color: OLIVE,
   },
 });
