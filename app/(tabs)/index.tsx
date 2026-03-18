@@ -20,8 +20,8 @@ import { ADMIN_EMAIL, supabase } from '@/lib/supabase';
 import { useDistrict } from '@/lib/DistrictContext';
 
 // ─── Brand Colors ─────────────────────────────────────────────────────────────
-const OLIVE = '#4D7C0F';
-const BG    = '#F9FAFB';
+const OLIVE = '#22D3EE';
+const BG    = '#0D0F1A';
 
 // ─── Category Config ─────────────────────────────────────────────────────────
 // Segment tabs: Yerel · Ulusal
@@ -499,7 +499,7 @@ export default function HomeScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <ActivityIndicator size="large" color={OLIVE} />
       </View>
     );
@@ -507,7 +507,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       {/* ── Sticky 2-Segment Tabs: Yerel · Ulusal ── */}
       <View style={styles.segmentBar}>
         {SEGMENT_CATEGORIES.map((cat) => {
@@ -585,9 +585,8 @@ const styles = StyleSheet.create({
   // ── 2-Segment Tabs ──
   segmentBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(249,250,251,0.97)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(226,232,240,0.8)',
+    backgroundColor: 'rgba(16,21,36,0.78)',
+    borderBottomWidth: 0,
   },
   segmentTab: {
     flex: 1,
@@ -609,7 +608,7 @@ const styles = StyleSheet.create({
   segmentTabText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: '#8EA4C6',
     letterSpacing: -0.1,
   },
   segmentTabTextActive: {
@@ -627,14 +626,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 14,
     padding: 14,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(23,31,51,0.62)',
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(241,245,249,0.9)',
-    elevation: 1,
+    borderWidth: 0,
+    elevation: 0,
     ...Platform.select({
-      web: { boxShadow: '0px 2px 10px rgba(0,0,0,0.03)' },
-      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 10 },
+      web: { boxShadow: '0px 14px 28px rgba(0,0,0,0.28)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 18 },
     }),
   },
 
@@ -642,11 +640,11 @@ const styles = StyleSheet.create({
   feedImageWrap: {
     width: 92, height: 92,
     borderRadius: 16, overflow: 'hidden',
-    backgroundColor: '#F1F5F9', flexShrink: 0,
+    backgroundColor: 'rgba(42,55,86,0.7)', flexShrink: 0,
   },
   feedImage: {
     width: 92, height: 92,
-    borderRadius: 16, backgroundColor: '#F1F5F9',
+    borderRadius: 16, backgroundColor: 'rgba(42,55,86,0.7)',
   },
   feedImageFallback: { alignItems: 'center', justifyContent: 'center' },
 
@@ -667,7 +665,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     right: 6,
-    backgroundColor: 'rgba(0,0,0,0.52)',
+    backgroundColor: 'rgba(10,14,24,0.66)',
     borderRadius: 20,
     paddingHorizontal: 7,
     paddingVertical: 4,
@@ -677,18 +675,18 @@ const styles = StyleSheet.create({
   },
   imageTimestamp: {
     fontSize: 10, fontWeight: '600',
-    color: 'rgba(255,255,255,0.85)',
+    color: '#D7E3F7',
     letterSpacing: 0.1,
   },
   imageSep: {
     fontSize: 9,
-    color: 'rgba(255,255,255,0.45)',
+    color: '#88A0C4',
     fontWeight: '400',
     lineHeight: 13,
   },
   imageLikeCount: {
     fontSize: 10, fontWeight: '700',
-    color: 'rgba(255,255,255,0.90)',
+    color: '#E8F2FF',
     letterSpacing: -0.2,
   },
   imageLikeCountActive: { color: '#FF6B8A' },
@@ -712,14 +710,15 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderRadius: 8,
     marginLeft: 4,
+    backgroundColor: 'rgba(37,49,75,0.65)',
   },
 
-  feedTitle      : { fontSize: 13, fontWeight: '600', color: '#1E293B', lineHeight: 18, letterSpacing: -0.15 },
-  feedDescription: { fontSize: 12, color: '#94A3B8', fontWeight: '400', lineHeight: 17 },
+  feedTitle      : { fontSize: 13, fontWeight: '700', color: '#EDF4FF', lineHeight: 18, letterSpacing: -0.15 },
+  feedDescription: { fontSize: 12, color: '#A1B5D4', fontWeight: '400', lineHeight: 17 },
 
   // ── Author row ──
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  authorText: { fontSize: 11, color: '#94A3B8', fontWeight: '500' },
+  authorText: { fontSize: 11, color: '#93A9C8', fontWeight: '500' },
   authorRoleBadge: {
     borderRadius: 100, paddingHorizontal: 6, paddingVertical: 2,
   },
@@ -727,6 +726,6 @@ const styles = StyleSheet.create({
 
   // Empty states
   emptyState    : { paddingVertical: 48, alignItems: 'center', gap: 12 },
-  emptyStateText: { fontSize: 14, color: '#CBD5E1', fontWeight: '400', textAlign: 'center' },
+  emptyStateText: { fontSize: 14, color: '#92A8C8', fontWeight: '400', textAlign: 'center' },
 
 });

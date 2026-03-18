@@ -17,12 +17,12 @@ import { useRouter } from 'expo-router';
 import { useDistrict } from '@/lib/DistrictContext';
 import { supabase } from '@/lib/supabase';
 
-const BG = '#F8F9FA';
-const CARD = '#FFFFFF';
-const OLIVE = '#4D7C0F';
-const OLIVE_BG = 'rgba(77,124,15,0.10)';
-const TEXT_PRIMARY = '#111827';
-const TEXT_SECONDARY = '#64748B';
+const BG = '#0D0F1A';
+const CARD = 'rgba(23,31,51,0.62)';
+const OLIVE = '#22D3EE';
+const OLIVE_BG = 'rgba(34,211,238,0.14)';
+const TEXT_PRIMARY = '#EDF4FF';
+const TEXT_SECONDARY = '#93A8C8';
 
 const EVENT_CATEGORIES = ['Konser', 'Tiyatro', 'Atölye', 'Pazar'] as const;
 type EventFilter = 'Tümü' | (typeof EVENT_CATEGORIES)[number];
@@ -179,7 +179,7 @@ export default function ExploreScreen() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       <View style={styles.filterSection}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -218,7 +218,7 @@ export default function ExploreScreen() {
         </View>
       ) : error ? (
         <View style={styles.centerState}>
-          <Ionicons name="alert-circle-outline" size={30} color="#E11D48" />
+          <Ionicons name="alert-circle-outline" size={30} color="#F43F5E" />
           <Text style={styles.errorTitle}>Etkinlikler yüklenemedi</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} activeOpacity={0.85} onPress={fetchEvents}>
@@ -276,13 +276,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#EEF2F5',
+    backgroundColor: 'rgba(31,42,68,0.72)',
   },
   filterChipActive: {
     backgroundColor: OLIVE_BG,
   },
   filterChipText: {
-    color: '#64748B',
+    color: '#8DA4C7',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -324,13 +324,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     ...Platform.select({
-      web: { boxShadow: '0px 8px 24px rgba(15, 23, 42, 0.06)' },
+      web: { boxShadow: '0px 14px 28px rgba(0, 0, 0, 0.28)' },
       default: {
-        shadowColor: '#0F172A',
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
+        shadowOpacity: 0.2,
         shadowRadius: 18,
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   },
   cardDescription: {
     marginTop: 4,
-    color: '#475569',
+    color: '#A3B7D6',
     fontSize: 13,
     lineHeight: 19,
   },
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   metaText: {
-    color: '#94A3B8',
+    color: '#94AACB',
     fontSize: 12,
     flexShrink: 1,
   },
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#94A3B8',
+    color: '#93A8C8',
     fontSize: 13,
     lineHeight: 20,
   },
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     textAlign: 'center',
-    color: '#64748B',
+    color: '#93A8C8',
     fontSize: 12,
     lineHeight: 18,
   },
