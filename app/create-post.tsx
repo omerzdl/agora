@@ -621,11 +621,11 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
     elevation: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 12px rgba(0,0,0,0.04)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 12 },
+    }),
   },
   typeCardIcon: {
     width: 64, height: 64, borderRadius: 20,
@@ -650,11 +650,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 18,
     borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
     elevation: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 12px rgba(0,0,0,0.04)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 12 },
+    }),
   },
   categoryCardIcon : {
     width: 56, height: 56, borderRadius: 16,
@@ -722,8 +722,11 @@ const styles = StyleSheet.create({
   removeMediaBtn: {
     position: 'absolute', top: -10, right: -10,
     backgroundColor: '#FFFFFF', borderRadius: 13,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15, shadowRadius: 4, elevation: 4,
+    elevation: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.15)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 4 },
+    }),
   },
 
   toolbar       : { paddingHorizontal: 20, paddingTop: 4 },

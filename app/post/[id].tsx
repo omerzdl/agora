@@ -960,11 +960,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: 'rgba(226,232,240,0.8)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
     elevation: 1,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.03)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4 },
+    }),
   },
   commentMeta: {
     flexDirection: 'row',
@@ -1008,11 +1008,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: 'rgba(226,232,240,0.8)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
     elevation: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px -3px 10px rgba(0,0,0,0.04)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.04, shadowRadius: 10 },
+    }),
   },
   commentInput: {
     flex: 1,

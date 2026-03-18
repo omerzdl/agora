@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +10,7 @@ export default function MarketScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBar style="dark" />
       <View style={styles.iconWrap}>
         <Ionicons name="storefront-outline" size={64} color={OLIVE} />
@@ -37,11 +37,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    shadowColor: OLIVE,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
     elevation: 3,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 16px rgba(77,124,15,0.1)' },
+      default: { shadowColor: OLIVE, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 16 },
+    }),
   },
   title: {
     fontSize: 24,

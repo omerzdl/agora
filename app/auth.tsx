@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { ADMIN_EMAIL } from '@/lib/supabase';
 import { DISTRICTS, District } from '@/lib/DistrictContext';
 
 // ─── Brand Colors ─────────────────────────────────────────────────────────────
@@ -65,7 +66,14 @@ function DistrictPicker({
 
 const dpStyles = StyleSheet.create({
   overlay  : { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
-  card     : { backgroundColor: '#fff', borderRadius: 20, width: '100%', maxWidth: 320, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 20 },
+  card     : {
+    backgroundColor: '#fff', borderRadius: 20, width: '100%', maxWidth: 320, overflow: 'hidden',
+    elevation: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 12px 24px rgba(0,0,0,0.15)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24 },
+    }),
+  },
   title    : { fontSize: 13, fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.6, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10 },
   item     : { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
   itemBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(226,232,240,0.6)' },
@@ -155,8 +163,16 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (mode === 'login') {
+        const normalizedEmail = email.trim().toLowerCase();
+        // Demo/test shortcut:
+        // - Email input: "praksistech"
+        // - Password: "1"
+        // Bu giriş, Supabase tarafında ADMIN_EMAIL ile oturum açar.
+        const resolvedEmail =
+          normalizedEmail === 'praksistech' && password === '1' ? ADMIN_EMAIL : email.trim();
+
         const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: resolvedEmail,
           password,
         });
         if (error) throw error;
@@ -544,8 +560,11 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 56, left: 16, zIndex: 10,
     width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
     borderRadius: 20, backgroundColor: '#fff',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+    elevation: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.06)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
+    }),
   },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 48 },
 
@@ -554,8 +573,11 @@ const styles = StyleSheet.create({
   logoCircle : {
     width: 80, height: 80, borderRadius: 24, backgroundColor: '#F0FDF4',
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
-    shadowColor: OLIVE, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12, shadowRadius: 12, elevation: 3,
+    elevation: 3,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(77,124,15,0.12)' },
+      default: { shadowColor: OLIVE, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12 },
+    }),
   },
   brandName   : { fontSize: 28, fontWeight: '700', color: '#0F172A', letterSpacing: -0.6 },
   brandTagline: { fontSize: 14, color: '#94A3B8', fontWeight: '400' },
@@ -563,7 +585,14 @@ const styles = StyleSheet.create({
   // Toggle
   toggleRow      : { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 14, padding: 4, marginBottom: 28 },
   toggleBtn      : { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 11 },
-  toggleBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  toggleBtnActive: {
+    backgroundColor: '#fff',
+    elevation: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.08)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+    }),
+  },
   toggleText     : { fontSize: 14, fontWeight: '500', color: '#94A3B8' },
   toggleTextActive: { color: '#0F172A' },
 
@@ -580,8 +609,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0',
     paddingHorizontal: 14, height: 52,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03, shadowRadius: 4, elevation: 1,
+    elevation: 1,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.03)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4 },
+    }),
   },
   pickerWrap: { height: 52 },
   pickerText: { color: '#0F172A', fontWeight: '400' },
@@ -596,8 +628,11 @@ const styles = StyleSheet.create({
   privacySection: {
     backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9',
     overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 1,
+    elevation: 1,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 8px rgba(0,0,0,0.04)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
+    }),
   },
   privacySectionTitle: {
     fontSize: 12, fontWeight: '600', color: '#94A3B8',
@@ -618,8 +653,11 @@ const styles = StyleSheet.create({
   submitBtn: {
     backgroundColor: OLIVE, borderRadius: 14, height: 52,
     alignItems: 'center', justifyContent: 'center', marginTop: 4,
-    shadowColor: OLIVE, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 10, elevation: 4,
+    elevation: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 10px rgba(77,124,15,0.3)' },
+      default: { shadowColor: OLIVE, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 },
+    }),
   },
   submitBtnDisabled: { opacity: 0.65 },
   submitText: { fontSize: 15, fontWeight: '600', color: '#fff', letterSpacing: -0.2 },
@@ -638,8 +676,11 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0',
     paddingVertical: 13,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    elevation: 1,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.04)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+    }),
   },
   socialBtnText: { fontSize: 13, fontWeight: '500', color: '#334155' },
   comingSoon   : { textAlign: 'center', fontSize: 11, color: '#CBD5E1', fontWeight: '400', marginTop: -4 },

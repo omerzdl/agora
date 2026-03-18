@@ -1,223 +1,423 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  RefreshControl,
+  ScrollView,
   StyleSheet,
+  Text,
   TouchableOpacity,
-  Modal,
-  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useDistrict, DISTRICTS, District } from '@/lib/DistrictContext';
+import { useRouter } from 'expo-router';
 
-// ─── Brand Colors ─────────────────────────────────────────────────────────────
+import { useDistrict } from '@/lib/DistrictContext';
+import { supabase } from '@/lib/supabase';
+
+const BG = '#F8F9FA';
+const CARD = '#FFFFFF';
 const OLIVE = '#4D7C0F';
-const BG    = '#F9FAFB';
+const OLIVE_BG = 'rgba(77,124,15,0.10)';
+const TEXT_PRIMARY = '#111827';
+const TEXT_SECONDARY = '#64748B';
 
-// ─── Reusable Dropdown ────────────────────────────────────────────────────────
-function DropdownModal<T extends string>({
-  visible,
-  items,
-  selected,
-  onSelect,
-  onClose,
-  title,
-}: {
-  visible: boolean;
-  items: readonly T[];
-  selected: T;
-  onSelect: (item: T) => void;
-  onClose: () => void;
+const EVENT_CATEGORIES = ['Konser', 'Tiyatro', 'Atölye', 'Pazar'] as const;
+type EventFilter = 'Tümü' | (typeof EVENT_CATEGORIES)[number];
+
+type FeedRow = {
+  id: string;
+  image: string | null;
+  media_type: string | null;
+  category: string | null;
+  category_color: string | null;
+  title: string | null;
+  description: string | null;
+  created_at: string | null;
+  district: string | null;
+};
+
+type EventItem = {
+  id: string;
+  image: string | null;
+  media_type: string | null;
+  category: string;
+  category_color: string;
   title: string;
-}) {
+  description: string;
+  created_at: string | null;
+  district: string | null;
+};
+
+function normalizeCategory(value: string | null) {
+  if (!value) return null;
+  const lower = value.toLocaleLowerCase('tr-TR');
+
+  if (lower.includes('konser')) return 'Konser';
+  if (lower.includes('tiyatro')) return 'Tiyatro';
+  if (lower.includes('atolye') || lower.includes('atölye')) return 'Atölye';
+  if (lower.includes('pazar')) return 'Pazar';
+  return null;
+}
+
+function mapEventRow(row: FeedRow): EventItem | null {
+  const normalizedCategory = normalizeCategory(row.category);
+  if (!normalizedCategory) return null;
+
+  return {
+    id: String(row.id),
+    image: row.image ?? null,
+    media_type: row.media_type ?? null,
+    category: normalizedCategory,
+    category_color: row.category_color ?? OLIVE,
+    title: row.title ?? 'Etkinlik',
+    description: row.description ?? '',
+    created_at: row.created_at ?? null,
+    district: row.district ?? null,
+  };
+}
+
+function formatEventDate(value: string | null) {
+  if (!value) return 'Tarih belirtilmedi';
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return 'Tarih belirtilmedi';
+  return new Intl.DateTimeFormat('tr-TR', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(parsed));
+}
+
+function EventCard({ item, onPress }: { item: EventItem; onPress: () => void }) {
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.dropdownCard}>
-              <Text style={styles.dropdownTitle}>{title}</Text>
-              {items.map((item, index) => {
-                const isLast   = index === items.length - 1;
-                const isActive = item === selected;
-                return (
-                  <TouchableOpacity
-                    key={item}
-                    style={[styles.dropdownItem, !isLast && styles.dropdownItemBorder]}
-                    activeOpacity={0.7}
-                    onPress={() => { onSelect(item); onClose(); }}
-                  >
-                    <Text
-                      style={[
-                        styles.dropdownItemText,
-                        isActive && styles.dropdownItemTextActive,
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                    {isActive && (
-                      <Ionicons name="checkmark-circle" size={18} color={OLIVE} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </TouchableWithoutFeedback>
+    <TouchableOpacity style={styles.card} activeOpacity={0.84} onPress={onPress}>
+      <View style={styles.cardBody}>
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text style={styles.cardDescription} numberOfLines={2}>
+          {item.description || 'Etkinlik açıklaması yakında paylaşılacak.'}
+        </Text>
+
+        <View style={styles.metaRow}>
+          <Ionicons name="calendar-outline" size={13} color="#94A3B8" />
+          <Text style={styles.metaText}>{formatEventDate(item.created_at)}</Text>
         </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+
+        <View style={styles.badgeRow}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{item.category}</Text>
+          </View>
+          {item.district ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{item.district}</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+    </TouchableOpacity>
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ExploreScreen() {
-  const insets = useSafeAreaInsets();
-  const { selectedDistrict, setSelectedDistrict } = useDistrict();
-  const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
+  const router = useRouter();
+  const { selectedDistrict } = useDistrict();
+
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<EventFilter>('Tümü');
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      setError(null);
+      const { data, error: queryError } = await supabase
+        .from('feed')
+        .select('id, image, media_type, category, category_color, title, description, created_at, district')
+        .eq('district', selectedDistrict)
+        .order('created_at', { ascending: false });
+
+      if (queryError) throw queryError;
+
+      const mapped =
+        (data as FeedRow[] | null)
+          ?.map((row) => mapEventRow(row))
+          .filter((item): item is EventItem => item !== null) ?? [];
+
+      setEvents(mapped);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Etkinlikler yüklenemedi.';
+      setError(message);
+      setEvents([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [selectedDistrict]);
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetchEvents();
+  }, [fetchEvents]);
+
+  const filteredEvents = useMemo(() => {
+    if (activeFilter === 'Tümü') return events;
+    return events.filter((item) => item.category === activeFilter);
+  }, [activeFilter, events]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchEvents();
+  }, [fetchEvents]);
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <StatusBar style="dark" />
 
-      {/* ── District Dropdown Modal ── */}
-      <DropdownModal
-        visible={districtDropdownOpen}
-        items={DISTRICTS}
-        selected={selectedDistrict}
-        onSelect={(d) => setSelectedDistrict(d as District)}
-        onClose={() => setDistrictDropdownOpen(false)}
-        title="Bölge Seç"
-      />
+      <View style={styles.filterSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          <TouchableOpacity
+            style={[styles.filterChip, activeFilter === 'Tümü' && styles.filterChipActive]}
+            activeOpacity={0.85}
+            onPress={() => setActiveFilter('Tümü')}
+          >
+            <Text style={[styles.filterChipText, activeFilter === 'Tümü' && styles.filterChipTextActive]}>Tümü</Text>
+          </TouchableOpacity>
 
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.locationBtn}
-          activeOpacity={0.75}
-          onPress={() => setDistrictDropdownOpen(true)}
-        >
-          <Ionicons name="location-outline" size={18} color={OLIVE} />
-          <Text style={styles.locationText}>{selectedDistrict}</Text>
-          <Ionicons name="chevron-down" size={14} color="#94A3B8" />
-        </TouchableOpacity>
+          {EVENT_CATEGORIES.map((category) => {
+            const active = activeFilter === category;
+            return (
+              <TouchableOpacity
+                key={category}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                activeOpacity={0.85}
+                onPress={() => setActiveFilter(category)}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{category}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      {/* ── Placeholder ── */}
-      <View style={styles.body}>
-        <Ionicons name="calendar-outline" size={48} color="#CBD5E1" />
-        <Text style={styles.title}>Etkinlikler</Text>
-        <Text style={styles.subtitle}>{selectedDistrict} etkinlikleri yakında burada</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Etkinlikler</Text>
+        <Text style={styles.sectionCount}>{filteredEvents.length} etkinlik</Text>
       </View>
+
+      {loading ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator size="small" color={OLIVE} />
+        </View>
+      ) : error ? (
+        <View style={styles.centerState}>
+          <Ionicons name="alert-circle-outline" size={30} color="#E11D48" />
+          <Text style={styles.errorTitle}>Etkinlikler yüklenemedi</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} activeOpacity={0.85} onPress={fetchEvents}>
+            <Text style={styles.retryText}>Tekrar dene</Text>
+          </TouchableOpacity>
+        </View>
+      ) : filteredEvents.length === 0 ? (
+        <View style={styles.centerState}>
+          <Ionicons name="calendar-clear-outline" size={36} color="#94A3B8" />
+          <Text style={styles.emptyTitle}>Etkinlik bulunamadı</Text>
+          <Text style={styles.emptyText}>
+            {selectedDistrict} için seçilen kategoride etkinlik paylaşımı bulunmuyor.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredEvents}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <EventCard
+              item={item}
+              onPress={() =>
+                router.push({
+                  pathname: '/post/[id]',
+                  params: { id: item.id, postData: JSON.stringify(item) },
+                })
+              }
+            />
+          )}
+          contentContainerStyle={styles.listContent}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={OLIVE} />}
+        />
+      )}
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: BG,
   },
-
-  // ── Header ──
-  header: {
-    backgroundColor: 'rgba(249,250,251,0.96)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(226,232,240,0.6)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+  filterSection: {
+    paddingTop: 10,
+    paddingBottom: 8,
+  },
+  filterRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+    alignItems: 'center',
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#EEF2F5',
+  },
+  filterChipActive: {
+    backgroundColor: OLIVE_BG,
+  },
+  filterChipText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  filterChipTextActive: {
+    color: OLIVE,
+  },
+  sectionHeader: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 10,
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  locationBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  locationText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0F172A',
-    letterSpacing: -0.3,
-  },
-
-  // ── Body ──
-  body: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '500',
-    color: '#1E293B',
+  sectionTitle: {
+    color: TEXT_PRIMARY,
+    fontSize: 21,
+    fontWeight: '800',
     letterSpacing: -0.4,
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#94A3B8',
-    fontWeight: '400',
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-
-  // ── Dropdown Modal ──
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  dropdownCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    width: '100%',
-    maxWidth: 320,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 20,
-  },
-  dropdownTitle: {
+  sectionCount: {
+    color: TEXT_SECONDARY,
     fontSize: 13,
     fontWeight: '600',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 10,
   },
-  dropdownItem: {
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 26,
+  },
+  separator: {
+    height: 10,
+  },
+  card: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    gap: 10,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 24px rgba(15, 23, 42, 0.06)' },
+      default: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 18,
+        elevation: 2,
+      },
+    }),
   },
-  dropdownItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(226,232,240,0.6)',
+  cardBody: {
+    flex: 1,
+    minWidth: 0,
   },
-  dropdownItemText: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#1E293B',
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: TEXT_PRIMARY,
+    letterSpacing: -0.3,
+    lineHeight: 23,
   },
-  dropdownItemTextActive: {
-    fontWeight: '600',
+  cardDescription: {
+    marginTop: 4,
+    color: '#475569',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  metaRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  metaText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    flexShrink: 1,
+  },
+  badgeRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  badge: {
+    backgroundColor: OLIVE_BG,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  badgeText: {
     color: OLIVE,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    gap: 8,
+  },
+  emptyTitle: {
+    color: TEXT_PRIMARY,
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#94A3B8',
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  errorTitle: {
+    color: TEXT_PRIMARY,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#64748B',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  retryButton: {
+    marginTop: 6,
+    backgroundColor: OLIVE_BG,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  retryText: {
+    color: OLIVE,
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

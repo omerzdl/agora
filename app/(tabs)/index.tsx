@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,36 +8,25 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  Modal,
-  TouchableWithoutFeedback,
   Platform,
 } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { ADMIN_EMAIL, supabase } from '@/lib/supabase';
-import { useDistrict, DISTRICTS, District } from '@/lib/DistrictContext';
-import StoryViewer, { Story } from '@/components/StoryViewer';
+import { useDistrict } from '@/lib/DistrictContext';
 
 // ─── Brand Colors ─────────────────────────────────────────────────────────────
 const OLIVE = '#4D7C0F';
 const BG    = '#F9FAFB';
-const RED   = '#EA580C';
 
 // ─── Category Config ─────────────────────────────────────────────────────────
-// Segment tabs: Yerel · Ulusal · Sosyal · Arkadaşlar
-const SEGMENT_CATEGORIES = ['Yerel', 'Ulusal', 'Sosyal', 'Arkadaşlar'] as const;
+// Segment tabs: Yerel · Ulusal
+const SEGMENT_CATEGORIES = ['Yerel', 'Ulusal'] as const;
 type SegmentCategory = (typeof SEGMENT_CATEGORIES)[number];
-
-const CATEGORY_ORDER: Record<string, number> = {
-  Yerel: 0, Ulusal: 1, Sosyal: 2, 'Arkadaşlar': 3,
-};
 
 // Posting roles — used by the header "+" auth guard
 const POSTING_ROLES = ['admin', 'editor', 'pro'] as const;
@@ -70,16 +59,6 @@ type FeedRow = {
   profiles      : { username: string; role: string | null } | null;
 };
 
-type StoryRow = {
-  id        : string;
-  media_url : string;
-  media_type: 'image' | 'video';
-  district  : string;
-  category  : string | null;
-  title     : string | null;
-  created_at: string;
-  user_id   : string | null;
-};
 
 type LikeState = { count: number; likedByMe: boolean };
 
@@ -101,18 +80,6 @@ function mapFeed(row: FeedRow): FeedItem {
   };
 }
 
-function mapStory(row: StoryRow): Story & { category: string; user_id: string | null } {
-  return {
-    id        : String(row.id),
-    media_url : row.media_url,
-    media_type: row.media_type,
-    district  : row.district,
-    category  : row.category ?? 'Yerel',
-    title     : row.title,
-    created_at: row.created_at,
-    user_id   : row.user_id ?? null,
-  };
-}
 
 // ─── Time-ago helper (Turkish) ────────────────────────────────────────────────
 function timeAgo(ds: string | null): string {
@@ -156,90 +123,6 @@ function isFeedVideo(item: FeedItem): boolean {
   return false;
 }
 
-// ─── Dropdown Modal (district selector) ──────────────────────────────────────
-function DropdownModal<T extends string>({
-  visible, items, selected, onSelect, onClose, title,
-}: {
-  visible: boolean; items: readonly T[]; selected: T;
-  onSelect: (v: T) => void; onClose: () => void; title: string;
-}) {
-  return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.dropdownCard}>
-              <Text style={styles.dropdownTitle}>{title}</Text>
-              {items.map((item, i) => {
-                const isLast   = i === items.length - 1;
-                const isActive = item === selected;
-                return (
-                  <TouchableOpacity
-                    key={item}
-                    style={[styles.dropdownItem, !isLast && styles.dropdownItemBorder]}
-                    activeOpacity={0.7}
-                    onPress={() => { onSelect(item); onClose(); }}
-                  >
-                    <View style={styles.dropdownItemLeft}>
-                      <Ionicons name="location-outline" size={18} color={isActive ? OLIVE : '#94A3B8'} />
-                      <Text style={[styles.dropdownItemText, isActive && styles.dropdownItemActive]}>{item}</Text>
-                    </View>
-                    {isActive && <Ionicons name="checkmark-circle" size={18} color={OLIVE} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
-  );
-}
-
-// ─── Admin "+" Button ─────────────────────────────────────────────────────────
-function AddStoryButton({ onPress }: { onPress: () => void }) {
-  return (
-    <TouchableOpacity style={styles.storyItem} activeOpacity={0.75} onPress={onPress}>
-      <LinearGradient colors={[OLIVE, '#84CC16']} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} style={styles.storyRing}>
-        <View style={[styles.storyInner, { backgroundColor: '#fff' }]}>
-          <View style={styles.addStoryCenter}>
-            <Ionicons name="add" size={28} color={OLIVE} />
-          </View>
-        </View>
-      </LinearGradient>
-      <Text style={styles.storyLabel}>Ekle</Text>
-    </TouchableOpacity>
-  );
-}
-
-// ─── Story Thumbnail ──────────────────────────────────────────────────────────
-function StoryItem({
-  story, viewed, onPress,
-}: {
-  story: Story & { category?: string };
-  viewed: boolean;
-  onPress: () => void;
-}) {
-  const label = story.title ? story.title.split(' ').slice(0, 2).join(' ') : 'Hikaye';
-  return (
-    <TouchableOpacity style={styles.storyItem} activeOpacity={0.75} onPress={onPress}>
-      {viewed ? (
-        <View style={[styles.storyRing, styles.storyRingViewed]}>
-          <View style={styles.storyInner}>
-            <Image source={{ uri: story.media_url }} style={styles.storyImage} contentFit="cover" transition={150} cachePolicy="memory-disk" />
-          </View>
-        </View>
-      ) : (
-        <LinearGradient colors={[OLIVE, '#84CC16']} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} style={styles.storyRing}>
-          <View style={styles.storyInner}>
-            <Image source={{ uri: story.media_url }} style={styles.storyImage} contentFit="cover" transition={150} cachePolicy="memory-disk" />
-          </View>
-        </LinearGradient>
-      )}
-      <Text style={styles.storyLabel} numberOfLines={1}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
 
 // ─── Role badge config ────────────────────────────────────────────────────────
 // Admin  → Gold/Red  (amber-orange, distinguishable, bold)
@@ -386,53 +269,15 @@ function FeedCard({
   );
 }
 
-// ─── Auth-guarded "Create Post" handler (used by header "+" button) ───────────
-const POSTING_ROLES_CHECK = POSTING_ROLES as readonly string[];
-
-async function handleCreatePost(router: ReturnType<typeof useRouter>) {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user) {
-    Alert.alert(
-      'Giriş Yapın',
-      'Devam etmek için giriş yapmalısınız.',
-      [
-        { text: 'Giriş Yap', onPress: () => router.push('/auth') },
-        { text: 'Vazgeç', style: 'cancel' },
-      ]
-    );
-    return;
-  }
-
-  if (session.user.email === ADMIN_EMAIL) {
-    router.push('/create-post');
-    return;
-  }
-
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .maybeSingle();
-
-  const role = (profileData?.role ?? '') as string;
-
-  if (!POSTING_ROLES_CHECK.includes(role)) {
-    Alert.alert(
-      'Yetki Gerekli',
-      'Paylaşım yapmak için Pro veya Editör hesabı olmanız gerekmektedir.',
-      [{ text: 'Tamam' }]
-    );
-    return;
-  }
-
-  router.push('/create-post');
-}
-
 // ─── Push notification token registration ─────────────────────────────────────
 async function registerForPushNotificationsAsync(): Promise<string | null> {
+  // expo-notifications push token listeners are not fully supported on web.
+  // Avoid registering on web to prevent noisy warnings and no-op listeners.
+  if (Platform.OS === 'web') return null;
+
+  // Lazy-load to avoid expo-notifications side effects on web.
+  const Notifications = await import('expo-notifications');
+
   // Physical device is required for push notifications
   if (!Device.isDevice) return null;
 
@@ -465,11 +310,9 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const { selectedDistrict, setSelectedDistrict } = useDistrict();
-  const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
+  const { selectedDistrict } = useDistrict();
 
   const [activeFilter, setActiveFilter] = useState<SegmentCategory>('Yerel');
 
@@ -478,31 +321,21 @@ export default function HomeScreen() {
   const [loading,    setLoading   ] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ── Stories (typed to include category + user_id) ──
-  type EnrichedStory = Story & { category: string; user_id: string | null };
-  const [stories,    setStories   ] = useState<EnrichedStory[]>([]);
-  const viewedIds = useRef<Set<string>>(new Set());
-
   // ── Auth ──
   const [userId,     setUserId    ] = useState<string | null>(null);
   const [isAdmin,    setIsAdmin   ] = useState(false);
   const [userRole,   setUserRole  ] = useState<string | null>(null);
-  const [mutualIds,  setMutualIds ] = useState<Set<string>>(new Set());
 
   // ── Like states ──
   const [likeStates, setLikeStates] = useState<Record<string, LikeState>>({});
 
-  // ── Story viewer ──
-  const [viewerVisible, setViewerVisible] = useState(false);
-  const [viewerIndex,   setViewerIndex  ] = useState(0);
-  const [viewerStories, setViewerStories] = useState<Story[]>([]);
 
   // ── Refresh user (auth + role) ────────────────────────────────────────────
   const refreshUser = useCallback(async (): Promise<string | null> => {
     const { data: { user } } = await supabase.auth.getUser();
     const uid = user?.id ?? null;
     setUserId(uid);
-    setIsAdmin(user?.email === ADMIN_EMAIL);
+    setIsAdmin((user?.email ?? '').toLowerCase() === ADMIN_EMAIL.toLowerCase());
 
     if (uid) {
       const { data: prof } = await supabase
@@ -516,28 +349,6 @@ export default function HomeScreen() {
     }
 
     return uid;
-  }, []);
-
-  // ── Load mutual friends ───────────────────────────────────────────────────
-  const loadMutuals = useCallback(async (uid: string | null) => {
-    if (!uid) { setMutualIds(new Set()); return; }
-
-    const { data: followingData } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', uid);
-
-    const followingIds = (followingData ?? []).map((r: { following_id: string }) => r.following_id);
-    if (followingIds.length === 0) { setMutualIds(new Set()); return; }
-
-    const { data: mutualData } = await supabase
-      .from('follows')
-      .select('follower_id')
-      .eq('following_id', uid)
-      .in('follower_id', followingIds);
-
-    const ids = new Set((mutualData ?? []).map((r: { follower_id: string }) => r.follower_id));
-    setMutualIds(ids);
   }, []);
 
   // ── Fetch likes ───────────────────────────────────────────────────────────
@@ -568,35 +379,16 @@ export default function HomeScreen() {
   const fetchAll = useCallback(async () => {
     try {
       const uid = await refreshUser();
-      await loadMutuals(uid);
-
-      const [feedRes, storyRes] = await Promise.all([
-        supabase
-          .from('feed')
-          .select('id, image, media_type, category, category_color, title, description, created_at, user_id, profiles(username, role)')
-          .eq('district', selectedDistrict)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('stories')
-          .select('id, media_url, media_type, district, category, title, created_at, user_id')
-          .eq('district', selectedDistrict)
-          .order('created_at', { ascending: false }),
-      ]);
+      const feedRes = await supabase
+        .from('feed')
+        .select('id, image, media_type, category, category_color, title, description, created_at, user_id, profiles(username, role)')
+        .eq('district', selectedDistrict)
+        .order('created_at', { ascending: false });
 
       if (feedRes.error)  console.error('[feed]',    feedRes.error.message);
-      if (storyRes.error) console.error('[stories]', storyRes.error.message);
 
       const feedItems = feedRes.data ? (feedRes.data as FeedRow[]).map(mapFeed) : [];
       setFeed(feedItems);
-
-      if (storyRes.data) {
-        const mapped = (storyRes.data as StoryRow[]).map(mapStory);
-        // Sort by category order
-        mapped.sort((a, b) =>
-          (CATEGORY_ORDER[a.category] ?? 99) - (CATEGORY_ORDER[b.category] ?? 99)
-        );
-        setStories(mapped);
-      }
 
       if (feedItems.length > 0) {
         await fetchLikes(feedItems.map((i) => i.id), uid);
@@ -604,7 +396,7 @@ export default function HomeScreen() {
     } catch (err) {
       console.error('[fetchAll]', err);
     }
-  }, [selectedDistrict, refreshUser, loadMutuals, fetchLikes]);
+  }, [selectedDistrict, refreshUser, fetchLikes]);
 
   // ── Initial load ──
   React.useEffect(() => {
@@ -697,48 +489,16 @@ export default function HomeScreen() {
     );
   }, [fetchAll]);
 
-  // ── Open story viewer ──
-  function openViewer(storiesSubset: EnrichedStory[], index: number) {
-    const s = storiesSubset[index];
-    if (s) viewedIds.current.add(s.id);
-    setViewerStories(storiesSubset);
-    setViewerIndex(index);
-    setViewerVisible(true);
-  }
-
   // ── Category + feed filtering ─────────────────────────────────────────────
   const filteredFeed = (() => {
-    if (activeFilter === 'Arkadaşlar') {
-      // Only show posts from mutual friends
-      return feed.filter((item) =>
-        item.category === 'Arkadaşlar' &&
-        item.authorId !== null &&
-        (mutualIds.has(item.authorId) || item.authorId === userId)
-      );
-    }
     return feed.filter((item) =>
       item.category.toLowerCase().includes(activeFilter.toLowerCase())
     );
   })();
 
-  // ── Filtered stories ──────────────────────────────────────────────────────
-  const filteredStories = (() => {
-    // All stories visible except Arkadaşlar — those only for mutual friends
-    return stories.filter((s) => {
-      if (s.category === 'Arkadaşlar') {
-        return s.user_id !== null && (mutualIds.has(s.user_id) || s.user_id === userId);
-      }
-      return true;
-    });
-  })();
-
-  // ─── Arkadaşlar empty state check ─────────────────────────────────────────
-  const arkadaşlarStoriesCount = filteredStories.filter((s) => s.category === 'Arkadaşlar').length;
-  const showArkadaşlarEmpty    = (activeFilter as string) === 'Arkadaşlar' && filteredFeed.length === 0;
-
   if (loading) {
     return (
-      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
+      <View style={styles.loadingContainer}>
         <StatusBar style="dark" />
         <ActivityIndicator size="large" color={OLIVE} />
       </View>
@@ -746,74 +506,9 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <StatusBar style="dark" />
-
-      {/* ── Story viewer ── */}
-      <StoryViewer
-        stories={viewerStories}
-        initialIndex={viewerIndex}
-        district={selectedDistrict}
-        visible={viewerVisible}
-        onClose={() => setViewerVisible(false)}
-      />
-
-      {/* ── District Dropdown ── */}
-      <DropdownModal
-        visible={districtDropdownOpen}
-        items={DISTRICTS}
-        selected={selectedDistrict}
-        onSelect={(d) => setSelectedDistrict(d as District)}
-        onClose={() => setDistrictDropdownOpen(false)}
-        title="Bölge Seç"
-      />
-
-      {/* ── Sticky Header: [+] | [District ▾] | [🔍][🔔] ── */}
-      <View style={styles.header}>
-        {/* Left: Create Post "+" */}
-        <TouchableOpacity
-          style={styles.headerAddBtn}
-          activeOpacity={0.75}
-          onPress={() => handleCreatePost(router)}
-        >
-          <Ionicons name="add-outline" size={26} color="#334155" />
-        </TouchableOpacity>
-
-        {/* Center: District Selector — absolutely positioned for true centering */}
-        <View style={styles.headerCenter} pointerEvents="box-none">
-          <TouchableOpacity
-            style={styles.locationBtn}
-            activeOpacity={0.75}
-            onPress={() => setDistrictDropdownOpen(true)}
-          >
-            <Ionicons name="location-outline" size={16} color={OLIVE} />
-            <Text style={styles.locationText}>{selectedDistrict}</Text>
-            <Ionicons name="chevron-down" size={14} color="#94A3B8" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Right: Search + Notifications */}
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            activeOpacity={0.75}
-            style={styles.headerIconWrap}
-            onPress={() => router.push('/search')}
-          >
-            <Ionicons name="search-outline" size={22} color="#334155" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.75}
-            style={styles.headerIconWrap}
-            onPress={() => router.push('/notifications')}
-          >
-            <Ionicons name="notifications-outline" size={24} color="#334155" />
-            <View style={styles.notifDot} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* ── Sticky 4-Segment Tabs: Yerel · Ulusal · Sosyal · Arkadaşlar ── */}
+      {/* ── Sticky 2-Segment Tabs: Yerel · Ulusal ── */}
       <View style={styles.segmentBar}>
         {SEGMENT_CATEGORIES.map((cat) => {
           const isActive = activeFilter === cat;
@@ -843,78 +538,10 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={OLIVE} colors={[OLIVE]} />}
       >
-        {/* ─ Stories Row ─ */}
-        <View style={styles.storiesSection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesRow}>
-            {isAdmin && <AddStoryButton onPress={() => router.push('/create-story')} />}
-
-            {filteredStories.length === 0 && activeFilter === 'Arkadaşlar' ? (
-              /* Arkadaşlar empty state: show "Arkadaş Ekle" button */
-              <TouchableOpacity
-                style={styles.addFriendStoryBtn}
-                activeOpacity={0.8}
-                onPress={() => router.push('/search')}
-              >
-                <View style={styles.addFriendStoryCircle}>
-                  <Ionicons name="person-add-outline" size={26} color={OLIVE} />
-                </View>
-                <Text style={styles.addFriendStoryLabel}>Arkadaş Ekle</Text>
-              </TouchableOpacity>
-            ) : filteredStories.length === 0 ? (
-              <View style={styles.noStoriesHint}>
-                <Ionicons name="images-outline" size={20} color="#CBD5E1" />
-                <Text style={styles.noStoriesText}>Hikaye yok</Text>
-              </View>
-            ) : (
-              filteredStories.map((story, i) => (
-                <StoryItem
-                  key={story.id}
-                  story={story}
-                  viewed={viewedIds.current.has(story.id)}
-                  onPress={() => openViewer(filteredStories, i)}
-                />
-              ))
-            )}
-
-            {/* Arkadaşlar stories section: show "Arkadaş Ekle" chip if 0 friend stories */}
-            {activeFilter !== 'Arkadaşlar' && arkadaşlarStoriesCount === 0 && filteredStories.length > 0 && (
-              <TouchableOpacity
-                style={styles.storyItem}
-                activeOpacity={0.75}
-                onPress={() => router.push('/search')}
-              >
-                <View style={[styles.storyRing, styles.addFriendRing]}>
-                  <View style={styles.filterInner}>
-                    <Ionicons name="person-add-outline" size={22} color="#94A3B8" />
-                  </View>
-                </View>
-                <Text style={[styles.storyLabel, { color: '#94A3B8' }]}>Arkadaş</Text>
-              </TouchableOpacity>
-            )}
-          </ScrollView>
-        </View>
-
         {/* ─ Feed ─ */}
         <View style={styles.feedSection}>
           <View style={styles.feedList}>
-            {showArkadaşlarEmpty ? (
-              /* Arkadaşlar category empty state */
-              <View style={styles.arkEmptyState}>
-                <Ionicons name="heart-outline" size={48} color="#CBD5E1" />
-                <Text style={styles.arkEmptyTitle}>Arkadaş Gönderisi Yok</Text>
-                <Text style={styles.arkEmptySubtitle}>
-                  Arkadaşlarınızın paylaşımlarını görmek için arkadaş ekleyin.
-                </Text>
-                <TouchableOpacity
-                  style={styles.arkEmptyBtn}
-                  activeOpacity={0.85}
-                  onPress={() => router.push('/search')}
-                >
-                  <Ionicons name="person-add-outline" size={16} color="#fff" />
-                  <Text style={styles.arkEmptyBtnText}>Arkadaş Ekle</Text>
-                </TouchableOpacity>
-              </View>
-            ) : filteredFeed.length === 0 ? (
+            {filteredFeed.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="newspaper-outline" size={40} color="#CBD5E1" />
                 <Text style={styles.emptyStateText}>{selectedDistrict} için henüz gönderi yok.</Text>
@@ -955,44 +582,7 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' },
   screen          : { flex: 1, backgroundColor: BG },
 
-  // ── Header ──
-  header: {
-    backgroundColor: 'rgba(249,250,251,0.96)',
-    borderBottomWidth: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    position: 'relative',
-  },
-  // "+" create post button (top-left)
-  headerAddBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    backgroundColor: 'rgba(77,124,15,0.08)',
-  },
-  // District selector — absolutely centered
-  headerCenter: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  locationBtn  : { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  locationText : { fontSize: 15, fontWeight: '700', color: '#0F172A', letterSpacing: -0.3 },
-  headerRight  : { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  headerIconWrap: { position: 'relative', width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  notifDot: {
-    position: 'absolute', top: 4, right: 4,
-    width: 8, height: 8, borderRadius: 4,
-    backgroundColor: RED, borderWidth: 1.5, borderColor: BG,
-  },
-
-  // ── 4-Segment Tabs ──
+  // ── 2-Segment Tabs ──
   segmentBar: {
     flexDirection: 'row',
     backgroundColor: 'rgba(249,250,251,0.97)',
@@ -1029,53 +619,8 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1 },
 
-  // ── Stories Row ──
-  storiesSection: { paddingTop: 16, paddingBottom: 8 },
-  storiesRow    : { paddingHorizontal: 20, gap: 16, alignItems: 'flex-start' },
-  storyItem     : { alignItems: 'center', gap: 8, maxWidth: 72 },
-  storyRing     : { width: 68, height: 68, borderRadius: 34, padding: 2.5 },
-  storyRingViewed: { backgroundColor: '#E2E8F0' },
-  storyInner    : { flex: 1, borderRadius: 32, borderWidth: 2, borderColor: BG, overflow: 'hidden', backgroundColor: '#F1F5F9' },
-  storyImage    : { width: '100%', height: '100%' },
-  storyLabel    : { fontSize: 11, color: '#475569', fontWeight: '400', textAlign: 'center' },
-  addStoryCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  noStoriesHint : { alignItems: 'center', justifyContent: 'center', gap: 4, width: 68, paddingTop: 8 },
-  noStoriesText : { fontSize: 10, color: '#CBD5E1', fontWeight: '400' },
-
-  // Add friend story button
-  addFriendStoryBtn   : { alignItems: 'center', gap: 8, maxWidth: 72 },
-  addFriendStoryCircle: {
-    width: 68, height: 68, borderRadius: 34,
-    backgroundColor: `${OLIVE}10`,
-    borderWidth: 1.5, borderColor: `${OLIVE}35`,
-    borderStyle: 'dashed',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  addFriendStoryLabel: { fontSize: 11, color: OLIVE, fontWeight: '500', textAlign: 'center' },
-
-  // Add friend chip in stories row
-  addFriendRing: { backgroundColor: '#F1F5F9', borderWidth: 1.5, borderColor: '#E2E8F0' },
-  filterInner  : { flex: 1, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-
-  // ── Dropdown ──
-  modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(15,23,42,0.45)',
-    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32,
-  },
-  dropdownCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 20, width: '100%', maxWidth: 320,
-    overflow: 'hidden', shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 20,
-  },
-  dropdownTitle     : { fontSize: 13, fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.6, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10 },
-  dropdownItem      : { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
-  dropdownItemBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(226,232,240,0.6)' },
-  dropdownItemLeft  : { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dropdownItemText  : { fontSize: 16, fontWeight: '400', color: '#1E293B' },
-  dropdownItemActive: { fontWeight: '600', color: OLIVE },
-
   // ── Feed ──
-  feedSection: { marginTop: 16, paddingHorizontal: 20 },
+  feedSection: { marginTop: 12, paddingHorizontal: 20 },
   feedList   : { gap: 14 },
   feedCard: {
     flexDirection: 'row',
@@ -1086,11 +631,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(241,245,249,0.9)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
     elevation: 1,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 10px rgba(0,0,0,0.03)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 10 },
+    }),
   },
 
   // ── Image with overlay ──
@@ -1184,17 +729,4 @@ const styles = StyleSheet.create({
   emptyState    : { paddingVertical: 48, alignItems: 'center', gap: 12 },
   emptyStateText: { fontSize: 14, color: '#CBD5E1', fontWeight: '400', textAlign: 'center' },
 
-  // Arkadaşlar empty
-  arkEmptyState   : { paddingVertical: 56, alignItems: 'center', gap: 12, paddingHorizontal: 24 },
-  arkEmptyTitle   : { fontSize: 18, fontWeight: '600', color: '#94A3B8', letterSpacing: -0.3 },
-  arkEmptySubtitle: { fontSize: 14, color: '#CBD5E1', textAlign: 'center', lineHeight: 20 },
-  arkEmptyBtn     : {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: OLIVE, borderRadius: 100,
-    paddingHorizontal: 20, paddingVertical: 11,
-    marginTop: 4,
-    shadowColor: OLIVE, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 10, elevation: 4,
-  },
-  arkEmptyBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 });

@@ -202,15 +202,13 @@ export default function StoryViewer({
         {/* ── Top gradient scrim ── */}
         <LinearGradient
           colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0.0)']}
-          style={[styles.gradientTop, { height: safeTop + 100 }]}
-          pointerEvents="none"
+          style={[styles.gradientTop, { height: safeTop + 100, pointerEvents: 'none' }]}
         />
 
         {/* ── Bottom gradient scrim ── */}
         <LinearGradient
           colors={['rgba(0,0,0,0.0)', 'rgba(0,0,0,0.5)']}
-          style={styles.gradientBottom}
-          pointerEvents="none"
+          style={[styles.gradientBottom, { pointerEvents: 'none' }]}
         />
 
         {/* ── Progress bars ── */}
@@ -265,7 +263,7 @@ export default function StoryViewer({
         {/* ── Tap zones (prev / next) ── */}
         {/* These sit ABOVE media but BELOW chrome; `pointerEvents` on the
             container lets chrome buttons receive their own touches. */}
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <View style={[StyleSheet.absoluteFill, { pointerEvents: 'box-none' }]}>
           <TouchableWithoutFeedback onPress={handlePrev}>
             <View style={styles.tapLeft} />
           </TouchableWithoutFeedback>
@@ -387,9 +385,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 23,
     letterSpacing: -0.4,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+    ...Platform.select({
+      web: { textShadow: '0px 1px 6px rgba(0,0,0,0.5)' },
+      default: { textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
+    }),
   },
 
   // ── Tap zones ──
